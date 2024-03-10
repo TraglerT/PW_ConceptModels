@@ -1,5 +1,4 @@
 from pandas import DataFrame
-from torch.utils.data import Dataset
 from PIL import Image
 import pandas as pd
 import os
@@ -19,6 +18,14 @@ class Derm7pt_data(object):
                               'miscellaneous', 'vascular lesion'], 'abbrevs': 'MISC', 'info': 'benign'},
         {'nums': 4, 'names': 'seborrheic keratosis', 'abbrevs': 'SK', 'info': 'benign'},
     ])
+
+    #Columns used in learning process for model
+    #Potential concept columns ['location', 'sex']
+    model_columns = {
+        'concepts': ['pigment_network', 'streaks', 'pigmentation', 'regression_structures', 'dots_and_globules',
+                     'blue_whitish_veil', 'vascular_structures'],
+        'label': ["nums"]
+    }
 
     def __init__(self, data_folder: str):
         self.images = self.loadImages(os.path.join(data_folder, "images"))
@@ -58,6 +65,28 @@ class Derm7pt_data(object):
         merged_df = merged_df.drop('names', axis=1)
         return merged_df
 
+    def data_split_by_index(self, indices):
+        """
+        Split the dataset by indices
+
+        :param indices: list of indices
+        :return: data, concepts, label
+        """
+        concepts = pd.DataFrame(columns=self.model_columns["concepts"])
+        label = pd.DataFrame(columns=self.model_columns["label"])
+        data = pd.DataFrame(columns=["image"])
+
+        for i in indices:
+            #create train_concepts dataframe based on index and columns_concepts
+            concepts.loc[len(concepts)] = self.metadata.iloc[i][self.model_columns["concepts"]]
+            #create label dataframe based on index and columns_label
+            label.loc[len(label)] = self.metadata.iloc[i][self.model_columns["label"]]
+
+            #Todo Concat derm and clinic
+            data.loc[len(data)] = self.images[os.path.normpath(self.metadata.iloc[i]['derm'].upper())]
+
+        return data, concepts, label
+
 
 
 class Derm7PtDatasetGroupInfrequent(object):
@@ -70,6 +99,7 @@ class Derm7PtDatasetGroupInfrequent(object):
          'info': ''},
     ])
 
+#ToDo
     pigmentation = pd.DataFrame([
         {'nums': 0, 'names': 'absent', 'abbrevs': 'ABS', 'scores': 0, 'info': ''},
         {'nums': 1, 'names': ['regular', 'diffuse regular', 'localized regular'], 'abbrevs': 'REG', 'scores': 0,
