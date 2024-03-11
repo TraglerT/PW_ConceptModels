@@ -2,8 +2,11 @@ from pandas import DataFrame
 from PIL import Image
 import pandas as pd
 import os
+import torch
+from torch.utils.data import Dataset
+from torchvision import transforms
 
-class Derm7pt_data(object):
+class Derm7pt_data(Dataset):
     #multiple specific class names grouped together by more general names
     diagnosis: DataFrame = pd.DataFrame([
         {'nums': 0, 'names': 'basal cell carcinoma', 'abbrevs': 'BCC', 'info': 'Common non-melanoma cancer'},
@@ -27,10 +30,30 @@ class Derm7pt_data(object):
         'label': ["nums"]
     }
 
-    def __init__(self, data_folder: str):
+    def __init__(self, data_folder: str, transform=None):
         self.images = self.loadImages(os.path.join(data_folder, "images"))
         self.metadata = self.loadMeta(os.path.join(data_folder, "meta\\meta.csv"))
         self.labels = self.metadata['nums']
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+
+    def __len__(self):
+        return len(self.metadata)
+
+
+    def __getitem__(self, index):
+        data = self.images[os.path.normpath(self.metadata.iloc[index]['derm'].upper())]
+        # Convert the Pandas Series to a NumPy array and then to a PyTorch tensor
+        data = self.transform(data)
+
+        #Todo Metadata
+
+        label = self.metadata.iloc[index][self.model_columns["label"]]
+        # Convert the Pandas Series to a NumPy array and then to a PyTorch tensor
+        label = torch.from_numpy(label.values.astype(float)).float()
+
+        return data, label
 
     def loadImages(self, input_dir: str):
         """
@@ -45,6 +68,7 @@ class Derm7pt_data(object):
             for file in files:
                 if file.endswith(tuple(['.jpg', '.JPG', '.jpeg', '.JPEG'])):
                     img = Image.open(os.path.join(dir, file))
+                    img = img.resize((768, 512))
                     key = os.path.normpath(os.path.join(tail, file)).upper()
                     result[key] = img
         return result
