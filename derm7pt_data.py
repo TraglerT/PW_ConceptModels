@@ -9,17 +9,17 @@ from torchvision import transforms
 class Derm7pt_data(Dataset):
     #multiple specific class names grouped together by more general names
     diagnosis: DataFrame = pd.DataFrame([
-        {'nums': 0, 'names': 'basal cell carcinoma', 'abbrevs': 'BCC', 'info': 'Common non-melanoma cancer'},
-        {'nums': 1,
+        {'nums': 0, 'is_cancer': 1, 'names': 'basal cell carcinoma', 'abbrevs': 'BCC', 'info': 'Common non-melanoma cancer'},
+        {'nums': 1, 'is_cancer': 0,
          'names': ['nevus', 'blue nevus', 'clark nevus', 'combined nevus', 'congenital nevus', 'dermal nevus',
                    'recurrent nevus', 'reed or spitz nevus'], 'abbrevs': 'NEV', 'info': 'Moles'},
-        {'nums': 2,
+        {'nums': 2, 'is_cancer': 1,
          'names': ['melanoma', 'melanoma (in situ)', 'melanoma (less than 0.76 mm)',
                    'melanoma (0.76 to 1.5 mm)',
                    'melanoma (more than 1.5 mm)', 'melanoma metastasis'], 'abbrevs': 'MEL', 'info': 'Melanoma, cancer'},
-        {'nums': 3, 'names': ['DF/LT/MLS/MISC', 'dermatofibroma', 'lentigo', 'melanosis',
+        {'nums': 3, 'is_cancer': 0, 'names': ['DF/LT/MLS/MISC', 'dermatofibroma', 'lentigo', 'melanosis',
                               'miscellaneous', 'vascular lesion'], 'abbrevs': 'MISC', 'info': 'benign'},
-        {'nums': 4, 'names': 'seborrheic keratosis', 'abbrevs': 'SK', 'info': 'benign'},
+        {'nums': 4, 'is_cancer': 0, 'names': 'seborrheic keratosis', 'abbrevs': 'SK', 'info': 'benign'},
     ])
 
     #Columns used in learning process for model
@@ -27,13 +27,16 @@ class Derm7pt_data(Dataset):
     model_columns = {
         'concepts': ['pigment_network', 'streaks', 'pigmentation', 'regression_structures', 'dots_and_globules',
                      'blue_whitish_veil', 'vascular_structures'],
-        'label': ["nums"]
+        'label': ["is_cancer"]
     }
 
-    def __init__(self, data_folder: str, transform=None):
-        self.images = self.loadImages(os.path.join(data_folder, "images"))
+    def __init__(self, data_folder: str):
+        self.image_folder = os.path.join(os.path.normpath(data_folder), "images")
         self.metadata = self.loadMeta(os.path.join(data_folder, "meta\\meta.csv"))
-        self.labels = self.metadata['nums']
+        if self.metadata.empty:
+            self.labels = pd.DataFrame(columns=self.model_columns["label"])
+        else:
+            self.labels = self.metadata[self.model_columns["label"]]
         self.transform = transforms.Compose([
             transforms.ToTensor(),
         ])
@@ -43,35 +46,31 @@ class Derm7pt_data(Dataset):
 
 
     def __getitem__(self, index):
-        data = self.images[os.path.normpath(self.metadata.iloc[index]['derm'].upper())]
+        #Todo Metadata/Concepts
+        metadata = self.metadata.iloc[index]
+
+        data = self.loadImage(metadata['derm'])
         # Convert the Pandas Series to a NumPy array and then to a PyTorch tensor
         data = self.transform(data)
 
-        #Todo Metadata
-
-        label = self.metadata.iloc[index][self.model_columns["label"]]
+        #Todo label = metadata[self.model_columns["label"]]
+        label = self.labels.iloc[index]
         # Convert the Pandas Series to a NumPy array and then to a PyTorch tensor
         label = torch.from_numpy(label.values.astype(float)).float()
 
         return data, label
 
-    def loadImages(self, input_dir: str):
+    def loadImage(self, file: str):
         """
-        Load all images from a directory
+        Load image and resize it to 768x512
 
         :param input_dir:
-        :return: {tail\filename: PixelImage}
+        :return: PixelImage
         """
-        result = {}
-        for dir, subdirs, files in os.walk(input_dir):
-            head, tail = os.path.split(dir)
-            for file in files:
-                if file.endswith(tuple(['.jpg', '.JPG', '.jpeg', '.JPEG'])):
-                    img = Image.open(os.path.join(dir, file))
-                    img = img.resize((768, 512))
-                    key = os.path.normpath(os.path.join(tail, file)).upper()
-                    result[key] = img
-        return result
+        file = os.path.normpath(file)
+        img = Image.open(os.path.join(self.image_folder, file))
+        img = img.resize((768, 512))
+        return img
 
     def loadImages_ToDo(self):
         #ToDo: add both clinical and dermoscopic images into dataset
@@ -80,13 +79,15 @@ class Derm7pt_data(Dataset):
 
     #load meta data
     def loadMeta(self, file_path: str):
-        df = pd.read_csv(file_path)
-        #drop columns that are not needed
-        drop_columns = ['case_id', 'notes', 'management']
-        df = df.drop(drop_columns, axis=1)
-        #diagnosis is very specific, so we merge it with the more general diagnosis grouping.
-        merged_df = df.merge(self.diagnosis.explode('names'), how='left', left_on='diagnosis', right_on='names')
-        merged_df = merged_df.drop('names', axis=1)
+        merged_df = pd.DataFrame()
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path)
+            #drop columns that are not needed
+            drop_columns = ['case_id', 'notes', 'management']
+            df = df.drop(drop_columns, axis=1)
+            #diagnosis is very specific, so we merge it with the more general diagnosis grouping.
+            merged_df = df.merge(self.diagnosis.explode('names'), how='left', left_on='diagnosis', right_on='names')
+            merged_df = merged_df.drop('names', axis=1)
         return merged_df
 
     def data_split_by_index(self, indices):
@@ -107,7 +108,8 @@ class Derm7pt_data(Dataset):
             label.loc[len(label)] = self.metadata.iloc[i][self.model_columns["label"]]
 
             #Todo Concat derm and clinic
-            data.loc[len(data)] = self.images[os.path.normpath(self.metadata.iloc[i]['derm'].upper())]
+
+            data.loc[len(data)] = self.loadImage(self.metadata.iloc[i]['derm'])
 
         return data, concepts, label
 
