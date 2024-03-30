@@ -15,10 +15,11 @@ class Derm7pt_data(Dataset):
                    'recurrent nevus', 'reed or spitz nevus'], 'abbrevs': 'NEV', 'info': 'Moles'},
         {'nums': 2, 'is_cancer': 1,
          'names': ['melanoma', 'melanoma (in situ)', 'melanoma (less than 0.76 mm)',
-                   'melanoma (0.76 to 1.5 mm)',
-                   'melanoma (more than 1.5 mm)', 'melanoma metastasis'], 'abbrevs': 'MEL', 'info': 'Melanoma, cancer'},
-        {'nums': 3, 'is_cancer': 0, 'names': ['DF/LT/MLS/MISC', 'dermatofibroma', 'lentigo', 'melanosis',
-                              'miscellaneous', 'vascular lesion'], 'abbrevs': 'MISC', 'info': 'benign'},
+                   'melanoma (0.76 to 1.5 mm)', 'melanoma (more than 1.5 mm)', 'melanoma metastasis'],
+         'abbrevs': 'MEL', 'info': 'Melanoma, cancer'},
+        {'nums': 3, 'is_cancer': 0, 'names': ['DF/LT/MLS/MISC', 'dermatofibroma', 'lentigo', 'melanosis'
+            , 'miscellaneous', 'vascular lesion'],
+         'abbrevs': 'MISC', 'info': 'benign'},
         {'nums': 4, 'is_cancer': 0, 'names': 'seborrheic keratosis', 'abbrevs': 'SK', 'info': 'benign'},
     ])
 
@@ -31,6 +32,7 @@ class Derm7pt_data(Dataset):
     }
 
     def __init__(self, data_folder: str):
+        self.image_size = (768, 512)
         self.image_folder = os.path.join(os.path.normpath(data_folder), "images")
         self.metadata = self.loadMeta(os.path.join(data_folder, "meta\\meta.csv"))
         if self.metadata.empty:
@@ -69,7 +71,7 @@ class Derm7pt_data(Dataset):
         """
         file = os.path.normpath(file)
         img = Image.open(os.path.join(self.image_folder, file))
-        img = img.resize((768, 512))
+        img = img.resize(self.image_size)
         return img
 
     def loadImages_ToDo(self):
