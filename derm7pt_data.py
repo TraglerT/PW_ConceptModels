@@ -28,7 +28,7 @@ class Derm7pt_data(Dataset):
     model_columns = {
         'concepts': ['pigment_network', 'streaks', 'pigmentation', 'regression_structures', 'dots_and_globules',
                      'blue_whitish_veil', 'vascular_structures'],
-        'label': ["is_cancer"]
+        'label': "nums",
     }
 
     def __init__(self, data_folder: str):
@@ -55,10 +55,7 @@ class Derm7pt_data(Dataset):
         # Convert the Pandas Series to a NumPy array and then to a PyTorch tensor
         data = self.transform(data)
 
-        #Todo label = metadata[self.model_columns["label"]]
-        label = self.labels.iloc[index]
-        # Convert the Pandas Series to a NumPy array and then to a PyTorch tensor
-        label = torch.from_numpy(label.values.astype(float)).float()
+        label = metadata[self.model_columns["label"]]
 
         return data, label
 
@@ -66,7 +63,7 @@ class Derm7pt_data(Dataset):
         """
         Load image and resize it to 768x512
 
-        :param input_dir:
+        :param file:
         :return: PixelImage
         """
         file = os.path.normpath(file)
@@ -91,29 +88,6 @@ class Derm7pt_data(Dataset):
             merged_df = df.merge(self.diagnosis.explode('names'), how='left', left_on='diagnosis', right_on='names')
             merged_df = merged_df.drop('names', axis=1)
         return merged_df
-
-    def data_split_by_index(self, indices):
-        """
-        Split the dataset by indices
-
-        :param indices: list of indices
-        :return: data, concepts, label
-        """
-        concepts = pd.DataFrame(columns=self.model_columns["concepts"])
-        label = pd.DataFrame(columns=self.model_columns["label"])
-        data = pd.DataFrame(columns=["image"])
-
-        for i in indices:
-            #create train_concepts dataframe based on index and columns_concepts
-            concepts.loc[len(concepts)] = self.metadata.iloc[i][self.model_columns["concepts"]]
-            #create label dataframe based on index and columns_label
-            label.loc[len(label)] = self.metadata.iloc[i][self.model_columns["label"]]
-
-            #Todo Concat derm and clinic
-
-            data.loc[len(data)] = self.loadImage(self.metadata.iloc[i]['derm'])
-
-        return data, concepts, label
 
 
 
