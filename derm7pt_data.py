@@ -107,10 +107,6 @@ class Derm7pt_data(Dataset):
         img = img.resize(self.image_size)
         return img
 
-    def loadImages_ToDo(self):
-        #ToDo: add both clinical and dermoscopic images into dataset
-        pass
-
 
     #load meta data
     def loadMeta(self, file_path: str):
