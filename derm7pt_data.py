@@ -130,7 +130,7 @@ class Derm7pt_data(Dataset):
 
 
 
-#   concepts_mapping = {
+#   multi_modal_concepts_mapping = {
 #         'pigment_network': pd.DataFrame([
 #             {'pigment_network_num': 0, 'names': 'absent', 'pigment_network_score': 0},
 #             {'pigment_network_num': 1, 'names': 'typical', 'pigment_network_score': 0},
