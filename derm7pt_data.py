@@ -15,6 +15,7 @@ class Derm7pt_data(Dataset):
         'label': "diagnosis_num",
     }
 
+    ### zite: used code from Kawahara derm7pt Github as basis for this part (https://github.com/jeremykawahara/derm7pt) ###
     #multiple specific class names grouped together by more general names
     diagnosis_mapping: DataFrame = pd.DataFrame([
         {'diagnosis_num': 0, 'is_cancer': 1, 'names': 'basal cell carcinoma', 'abbrevs': 'BCC', 'info': 'Common non-melanoma cancer'},
@@ -64,12 +65,12 @@ class Derm7pt_data(Dataset):
             {'vascular_structures_num': 1, 'names': ['dotted/irregular', 'dotted', 'linear irregular'], 'vascular_structures_score': 2},
         ]),
     }
-
+    ### end zite ###
 
     def __init__(self, data_folder: str):
         self.image_size = (768, 512)
         self.image_folder = os.path.join(os.path.normpath(data_folder), "images")
-        self.metadata = self.loadMeta(os.path.join(data_folder, "meta\\meta.csv"))
+        self.metadata = self.loadMeta(os.path.join(data_folder, "meta//meta.csv"))
         if self.metadata.empty:
             self.labels = pd.DataFrame(columns=self.model_columns["label"])
         else:
@@ -90,7 +91,7 @@ class Derm7pt_data(Dataset):
         data = self.transform(data)
 
         label = metadata[self.model_columns["label"]]
-        concepts = pd.to_numeric(metadata[self.model_columns["concepts"]], errors='ignore')
+        concepts = pd.to_numeric(metadata[self.model_columns["concepts"]])
         concepts = torch.tensor(concepts.values, dtype=torch.float32)
 
         return data, label, concepts
@@ -103,7 +104,8 @@ class Derm7pt_data(Dataset):
         :return: PixelImage
         """
         file = os.path.normpath(file)
-        img = Image.open(os.path.join(self.image_folder, file))
+        path = os.path.join(self.image_folder, file)
+        img = Image.open(self.__find_case_insensitive_path(path))
         img = img.resize(self.image_size)
         return img
 
@@ -126,6 +128,21 @@ class Derm7pt_data(Dataset):
                 merged_df = merged_df.drop('names', axis=1)
         return merged_df
 
+    # finding file for case sensitive operating systems. Since Folder and Filename are not always correct in meta file.
+    def __find_case_insensitive_path(self, path):
+        if os.path.isfile(path):
+            return path
+
+        # check only last two parts of the path for case sensitivity
+        parts = path.split(os.sep)
+        current_path = os.path.join(os.sep, os.path.join(*parts[1:-2]))
+        for part in parts[-2:]:
+            entries = os.listdir(current_path)
+            for entry in entries:
+                if entry.lower() == part.lower():
+                    current_path = os.path.join(current_path, entry)
+                    break
+        return current_path
 
 
 

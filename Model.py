@@ -116,7 +116,7 @@ class Simple_CNN_PerfectConcepts(nn.Module):
 
         return x_concepts, x_outputs
 
-# Model where only the output label is predicted and not the concepts
+# Comparison Model where only the output label is predicted and not the concepts
 class Concept_To_Label_Net(nn.Module):
     def __init__(self, num_classes=1, num_concepts=1, image_size=(192, 128)):
         super(Concept_To_Label_Net, self).__init__()
